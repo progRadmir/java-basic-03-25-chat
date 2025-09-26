@@ -11,6 +11,7 @@ public class Client {
     private final DataInputStream input;
     private final DataOutputStream output;
     private final Scanner scanner;
+    private volatile boolean isBanned;
 
     public Client(String host, int port) {
         try {
@@ -26,13 +27,20 @@ public class Client {
 
     void start() {
         try {
-            new Thread(() -> {
+            Thread thread = new Thread(() -> {
                 try {
                     while (true) {
                         String msg = input.readUTF();
                         if (msg.equals("/exit")) {
-                            output.writeUTF(msg);
                             break;
+                        }
+                        if (msg.equals("/kick")) {
+                            isBanned = true;
+                            continue;
+                        }
+                        if (msg.equals("/kickCancel")) {
+                            isBanned = false;
+                            continue;
                         }
                         System.out.println(msg);
                     }
@@ -41,9 +49,13 @@ public class Client {
                     } finally{
                         disconnect();
                     }
-            }).start();
+            });
+            thread.start();
             while (true) {
                 String msg = scanner.nextLine();
+                if (isBanned && !msg.equals("/exit")) {
+                    continue;
+                }
                 if (msg.equals("/exit")) {
                     output.writeUTF(msg);
                     break;

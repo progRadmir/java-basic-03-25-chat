@@ -10,36 +10,69 @@ public class ClientHandler {
     private final Server server;
     private final DataInputStream input;
     private final DataOutputStream output;
-    private final String username;
+    private volatile String username;
 
     public ClientHandler(Socket socket, Server server) throws IOException {
         this.socket = socket;
         this.server = server;
         this.input = new DataInputStream(socket.getInputStream());
         this.output = new DataOutputStream(socket.getOutputStream());
-        this.username = "user_" + socket.getPort();
         start();
-        sendMessage("Вы подключились под ником: " + username);
+    }
+
+    public Socket getSocket() {
+        return socket;
     }
 
     public String getUsername() {
         return username;
     }
 
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
     void start() {
         new Thread(() -> {
             try {
-                server.subscribe(this);
+                sendMessage("Добрый день! Для перехода в чат авторизуйтесь/зарегистрируйтесь:");
+                sendMessage("Для авторизации введите следующий запрос: '/auth login password'");
+                sendMessage("Для регистрации введите следующий запрос: '/reg login password'");
+
                 while(true) {
                     String msg = input.readUTF();
+                    if(msg.startsWith("/reg") && server.checkMsgRegister(this, msg)) {
+                        break;
+                    }
+                    if(msg.startsWith("/auth") && server.checkMsgAuthenticate(this, msg)) {
+                        break;
+                    }
+                    if(msg.equals("/exit")) {
+                        sendMessage("До свидания!");
+                        sendMessage(msg);
+                        return;
+                    }
+                    sendMessage("Для перехода в чат авторизуйтесь/зарегистрируйтесь");
+                }
+
+                server.subscribe(this);
+                sendMessage("Вы вошли в чат под ником: " + username);
+                while(true) {
+                    String msg = input.readUTF();
+                    if(!server.checkActiveUsers(username) && !msg.equals("/exit")) {
+                        continue;
+                    }
                     if(msg.startsWith("/")) {
                         if(msg.equals("/exit")) {
-                            sendMessage("Вы вышли из чата. До свидания!");
+                            sendMessage("Вы покинули чат");
                             sendMessage(msg);
                             break;
                         }
                         if(msg.startsWith("/w")) {
                             server.personalMessage(this, msg);
+                        }
+                        if(msg.startsWith("/kick")) {
+                            server.checkBeforeKick(this, msg);
                         }
                     }
                     else {
@@ -62,9 +95,19 @@ public class ClientHandler {
         }
     }
 
-    private void disconnect() {
-        server.unsubscribe(this);
-        server.broadcastMessage("Пользователь " + username + " покинул чат");
+
+    private synchronized void disconnect() {
+        if(username == null) {
+            System.out.println("Пользователь user_" + this.socket.getPort() + " отключился");
+        } else if(server.checkActiveUsers(username)) {
+            server.unsubscribe(this);
+            System.out.println("Пользователь user_" + socket.getPort() + " (" + username + ") покинул чат");
+            server.broadcastMessage("Пользователь " + username + " покинул чат");
+        } else {
+            System.out.println("Пользователь user_" + socket.getPort() + " (" + username + ") покинул чат");
+            server.broadcastMessage("Пользователь " + username + " покинул чат");
+        }
+
         if(input != null) {
             try {
                 input.close();
