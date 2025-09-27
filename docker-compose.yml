@@ -1,0 +1,15 @@
+services:
+  chat-db:
+    image: postgres
+    container_name: postgres
+    ports:
+      - "8090:5432"
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=chatdb
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

@@ -9,25 +9,26 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Server {
     private final int port;
     private final Map<String, ClientHandler> activeClients;
-    private final InMemoryAuthenticationProvider inMemoryAuthenticationProvider;
+    private final DBAuthenticationProvider authenticationProvider;
 
     public Server(int port) {
         this.port = port;
         activeClients = new ConcurrentHashMap<>();
-        inMemoryAuthenticationProvider = new InMemoryAuthenticationProvider(this);
+        authenticationProvider = new DBAuthenticationProvider(this);
         start();
     }
 
     void start(){
         try(ServerSocket serverSocket = new ServerSocket(port)) {
             System.out.println("Сервер запущен на порту: " + port);
-            inMemoryAuthenticationProvider.initialize();
+            authenticationProvider.initialize();
             while(true) {
                 Socket socket = serverSocket.accept();
                 new ClientHandler(socket, this);
                 System.out.println("Подключен пользователь: user_" + socket.getPort());
             }
         } catch (IOException e) {
+            authenticationProvider.close();
             throw new RuntimeException(e);
         }
     }
@@ -64,7 +65,7 @@ public class Server {
             clientHandler.sendMessage("Неверный формат запроса '/auth login password'");
             return false;
         }
-        return inMemoryAuthenticationProvider.authenticate(clientHandler, text[1], text[2]);
+        return authenticationProvider.authenticate(clientHandler, text[1], text[2]);
     }
 
     boolean checkMsgRegister(ClientHandler clientHandler, String msg) {
@@ -73,7 +74,7 @@ public class Server {
             clientHandler.sendMessage("Неверный формат запроса '/reg login password'");
             return false;
         }
-        return inMemoryAuthenticationProvider.register(clientHandler,  text[1], text[2]);
+        return authenticationProvider.register(clientHandler,  text[1], text[2]);
 
     }
 
@@ -106,7 +107,7 @@ public class Server {
             clientHandler.sendMessage("Неверный формат запроса '/kick username'");
             return;
         }
-        if(inMemoryAuthenticationProvider.getRole(clientHandler.getUsername()) != Role.ADMIN) {
+        if(!authenticationProvider.checkOnAdmin(clientHandler.getUsername())) {
             clientHandler.sendMessage("Вы не можете банить других пользователей");
             return;
         }

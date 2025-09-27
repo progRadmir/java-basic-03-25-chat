@@ -53,6 +53,9 @@ public class Client {
             thread.start();
             while (true) {
                 String msg = scanner.nextLine();
+                if(!thread.isAlive()) {
+                    break;
+                }
                 if (isBanned && !msg.equals("/exit")) {
                     continue;
                 }
