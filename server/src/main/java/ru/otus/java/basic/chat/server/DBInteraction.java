@@ -20,6 +20,7 @@ public class DBInteraction {
             pr.setString(2, password);
             pr.executeUpdate();
         } catch (SQLException e) {
+            close();
             throw new RuntimeException(e);
         }
     }
@@ -33,6 +34,7 @@ public class DBInteraction {
             }
             return false;
         } catch (SQLException e) {
+            close();
             throw new RuntimeException(e);
         }
     }
@@ -49,6 +51,7 @@ public class DBInteraction {
             }
             return true;
         } catch (SQLException e) {
+            close();
             throw new RuntimeException(e);
         }
     }
@@ -68,6 +71,7 @@ public class DBInteraction {
             }
             return true;
         } catch (SQLException e) {
+            close();
             throw new RuntimeException(e);
         }
     }
